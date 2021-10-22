@@ -35,47 +35,54 @@ type AuthResponse = {
 
 type AuthorizationResponse = {
   params: {
-    code?: string
-  }
+    code?: string,
+    error?: string
+  },
+  type?: string
 }
 
-export const AuthContext = createContext({} as AuthContextData )
+export const AuthContext = createContext({} as AuthContextData)
 
-function AuthProvider({children}: AuthProviderProps) {
+function AuthProvider({ children }: AuthProviderProps) {
   const [isSigninIn, setIsSigninIn] = useState(true)
   const [user, setUser] = useState<User | null>(null)
 
   async function signIn() {
-    setIsSigninIn(true)
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=${SCOPE}`
-    const { params } = await AuthSessions.startAsync( { authUrl }) as AuthorizationResponse
+    try {
+      setIsSigninIn(true)
+      const authUrl = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=${SCOPE}`
+      const authSessionResponse = await AuthSessions.startAsync({ authUrl }) as AuthorizationResponse
 
-    if(params && params.code){
-      const authResponse = await api.post('/authenticate', { code: params.code})
-      const { user, token } = authResponse.data as AuthResponse
+      if (authSessionResponse.type === "success" && authSessionResponse.params.error !== "access_denied") {
+        const authResponse = await api.post('/authenticate', { code: authSessionResponse.params.code })
+        const { user, token } = authResponse.data as AuthResponse
 
-      api.defaults.headers.common["Authorization"] = `Bearer ${token}`
+        api.defaults.headers.common["Authorization"] = `Bearer ${token}`
 
-      await AsyncStorage.setItem(USER_STORAGE, JSON.stringify(user))
-      await AsyncStorage.setItem(TOKEN_STORAGE, JSON.stringify(token))
+        await AsyncStorage.setItem(USER_STORAGE, JSON.stringify(user))
+        await AsyncStorage.setItem(TOKEN_STORAGE, token)
 
-      setUser(user)
+        setUser(user)
+      }
+    } catch (err) {
+      console.log(err)
+    } finally {
+      setIsSigninIn(false)
     }
-
-    setIsSigninIn(false)
-
   }
 
   async function signOut() {
-    
+    setUser(null)
+    await AsyncStorage.removeItem(USER_STORAGE)
+    await AsyncStorage.removeItem(TOKEN_STORAGE)
   }
 
-  useEffect(()=>{
+  useEffect(() => {
     async function loadUserStorageData() {
       const userStorage = await AsyncStorage.getItem(USER_STORAGE)
       const tokenStorage = await AsyncStorage.getItem(TOKEN_STORAGE)
 
-      if(userStorage && tokenStorage){
+      if (userStorage && tokenStorage) {
         api.defaults.headers.common["Authorization"] = `Bearer ${tokenStorage}`
         setUser(JSON.parse(userStorage))
       }

@@ -10,10 +10,9 @@ import { useAuth } from '../../hooks/auth';
 // Styles
 import { COLORS } from '../../theme';
 import { styles } from './styles';
-import { sin } from 'react-native-reanimated';
 
 export function SignInBox() {
-  const { signIn } = useAuth()
+  const { signIn, isSigninIn } = useAuth()
   return (
     <View style={styles.container}>
       <MyButton
@@ -21,8 +20,8 @@ export function SignInBox() {
         color={COLORS.BLACK_PRIMARY}
         backgroundColor={COLORS.YELLOW}
         icon="github"
-        isLoading={false}
         onPress={signIn}
+        isLoading={isSigninIn}
       />
     </View>
   );
